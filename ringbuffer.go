@@ -1,14 +1,24 @@
 // Copyright 2014 @ericaro. All rights reserved.
 // Use of this source code is governed by a Apache License, Version 2.0.
 
-// Package ringbuffer provides data structure to deal with circular buffer (aka ring buffer).
+// Package ringbuffer provides "Ring" struct: a ring buffer.
 //
-// See http://en.wikipedia.org/wiki/Circular_buffer for the definition of a ring buffer.
 //
-// Ring is a fixed size buffer, where values are "Pushed" at the head
-// and discarded at the tail.
+// A ring buffer is a data structure that uses a single, fixed-size buffer as if it were connected end-to-end.
+// in http://en.wikipedia.org/wiki/Circular_buffer .
 //
-// It is implemented using a fixed size memory.
+//
+// Basic operations on a Ring are:
+//   Add: add a value to the head.
+//   Remove: remove value from the tail.
+//   Get : read values from the Ring
+//
+// More advanced operations are:
+//   Push: Add and Remove at once. It does not consume any extra memory
+//   AddAll: Add several values in Bulk.
+// 		SetCapacity: increase this buffer capacity (preserving its size)
+//
+//
 package ringbuffer
 
 import (
