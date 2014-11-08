@@ -7,7 +7,7 @@ deal with [ring buffer](http://en.wikipedia.org/wiki/Circular_buffer)
 # Installation
 
 first get [go](http://golang.org)
-then `go get github.com/ericaro/`
+then `go get github.com/ericaro/ringbuffer`
 
 This package has no dependencies, so you can just `git clone` it.
 
