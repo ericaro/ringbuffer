@@ -170,7 +170,7 @@ func TestAddAll(t *testing.T) {
 	b = New(3)
 
 	err = b.AddAll(0, 1, 2, 3)
-	if err != FullError {
+	if err != ErrFull {
 		t.Fatalf("should have failed with FullError, got %v", err)
 	}
 	if b.Size() != 0 {

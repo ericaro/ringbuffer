@@ -27,8 +27,10 @@ import (
 )
 
 var (
-	EmptyError = errors.New("empty ring buffer")
-	FullError  = errors.New("full ring buffer")
+	//ErrEmpty is the error returned when the ring is empty, preventing the function completion.
+	ErrEmpty = errors.New("empty ring buffer")
+	//ErrFull is the error returned when the ring is full, preventing the function completion.
+	ErrFull = errors.New("full ring buffer")
 )
 
 //Ring is a basic implementation of a circular buffer http://en.wikipedia.org/wiki/Circular_buffer
@@ -51,7 +53,7 @@ func New(capacity int) (b *Ring) {
 //If the capacity is exhausted (size == capacity) an error is returned.
 func (b *Ring) Add(val interface{}) error {
 	if b.size >= len(b.buf) {
-		return FullError
+		return ErrFull
 	}
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -72,7 +74,7 @@ func (b *Ring) AddAll(values ...interface{}) error {
 	defer b.lock.Unlock()
 
 	if b.size+len(values) > len(b.buf) {
-		return FullError
+		return ErrFull
 	}
 
 	//alg: add as much as possible in a single copy, and repeat until exhaustion
@@ -104,7 +106,7 @@ func (b *Ring) AddAll(values ...interface{}) error {
 		n := copy(tgt, values) //n is the number of copied values
 
 		if n == 0 { // could not write ! the buf is exhausted
-			panic(FullError) // because we have tested this case before,I'd rather  panic than infinite loop
+			panic(ErrFull) // because we have tested this case before,I'd rather  panic than infinite loop
 		}
 
 		// we adjust local variables (latest has moved, and so has size)
@@ -214,7 +216,7 @@ func (b *Ring) Get(i int) (interface{}, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 	if b.size == 0 {
-		return 0, EmptyError
+		return 0, ErrEmpty
 	}
 	position := Index(i, b.head, b.size, len(b.buf))
 	return b.buf[position], nil
