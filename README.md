@@ -13,7 +13,7 @@ This package has no dependencies, so you can just `git clone` it.
 
 # License
 
-mrepo is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
+ringbuffer is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 
 # Branches
