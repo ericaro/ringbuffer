@@ -1,4 +1,4 @@
-# Ringbuffer
+# Ringbuffer [![Build Status](https://travis-ci.org/ericaro/ringbuffer.png?branch=master)](https://travis-ci.org/ericaro/ringbuffer)
 
 ringbuffer is a Golang package that provides data structure to 
 deal with [ring buffer](http://en.wikipedia.org/wiki/Circular_buffer) 
