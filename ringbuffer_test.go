@@ -258,4 +258,5 @@ func print(b *Ring) string {
 	} else { //two pieces
 		return fmt.Sprintf("*%v*  %v   *%v*", b.buf[:latest+1], b.buf[latest+1:end], b.buf[end:])
 	}
+	return ""
 }
