@@ -5,26 +5,46 @@ import (
 	"testing"
 )
 
-func ExampleRing_AddAll() {
+func ExampleRing_Add() {
 	buf := New(5)
-	buf.AddAll(1, 2, 3) //fill the buffer
+	buf.Add(1, 2, 3) //fill the buffer
+	fmt.Println(buf.Size())
+	//Output: 3
 }
 func ExampleRing_Remove() {
 	buf := New(5)
-	buf.AddAll(1, 2, 3) //fill the buffer
+	buf.Add(1, 2, 3) //fill the buffer
 	buf.Remove(2)
 	oldest, _ := buf.Get(-1)
-	fmt.Printf("%v\n", oldest)
+	fmt.Println(oldest)
+	fmt.Println(buf.Size())
 	//Output: 3
+	// 1
+}
+
+func ExampleRing_Push() {
+	buf := New(5)
+	buf.Add(1, 2, 3) //fill the buffer
+	buf.Push(4)      // push a new value and remove oldest (1)
+	latest, _ := buf.Get(0)
+	fmt.Println(buf.Size())
+	fmt.Println(latest)
+	//Output: 3
+	// 4
 }
 
 func ExampleRing_Get() {
 	buf := New(5)
-	buf.AddAll(1, 2, 3)      //fill the buffer
-	latest, _ := buf.Get(0)  //get the oldest
-	oldest, _ := buf.Get(-1) //get the oldest
-	fmt.Printf("%v %v\n", oldest, latest)
-	//Output: 1 3
+	buf.Add(1, 2, 3)          //fill the buffer
+	latest, _ := buf.Get(0)   //get the oldest
+	previous, _ := buf.Get(1) //get the oldest
+	oldest, _ := buf.Get(-1)  //get the oldest
+	fmt.Println(latest)
+	fmt.Println(previous)
+	fmt.Println(oldest)
+	//Output: 3
+	// 2
+	// 1
 }
 
 //TestIndex because this is the main function
@@ -119,7 +139,7 @@ func TestAddAll(t *testing.T) {
 	M := 10
 	b := New(M)
 
-	err := b.AddAll(0, 1, 2, 3)
+	err := b.Add(0, 1, 2, 3)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -138,7 +158,7 @@ func TestAddAll(t *testing.T) {
 	//let's add four more values, but this time we are not at the begining of the capacity
 	// meaning that we are going to add in two times
 	b.head = 8
-	err = b.AddAll(0, 1, 2, 3)
+	err = b.Add(0, 1, 2, 3)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -157,7 +177,7 @@ func TestAddAll(t *testing.T) {
 	// and now fill it up exactly
 	b = New(4)
 
-	err = b.AddAll(0, 1, 2, 3)
+	err = b.Add(0, 1, 2, 3)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -169,7 +189,7 @@ func TestAddAll(t *testing.T) {
 	//
 	b = New(3)
 
-	err = b.AddAll(0, 1, 2, 3)
+	err = b.Add(0, 1, 2, 3)
 	if err != ErrFull {
 		t.Fatalf("should have failed with FullError, got %v", err)
 	}
@@ -179,14 +199,31 @@ func TestAddAll(t *testing.T) {
 
 }
 
+func TestPushAll(t *testing.T) {
+	//golden
+	x := New(5)
+	x.Add(1, 2, 3)
+	x.Push(4)
+	x.Push(5)
+
+	//real
+	b := New(5)
+	b.Add(1, 2, 3)
+	b.Push(4, 5)
+	//pushall should be just the equivalent to push, twice
+	if !equals(b, x) {
+		t.Errorf("PushAll should be equivalent to Push() many times:\nreal%s\ngold%s\n", print(b), print(x))
+	}
+
+}
 func TestIncrease(t *testing.T) {
 
 	x := New(5)
-	x.AddAll(1, 2, 3, 4)
+	x.Add(1, 2, 3, 4)
 
 	// basic increase
 	b := New(5)
-	b.AddAll(1, 2, 3, 4)
+	b.Add(1, 2, 3, 4)
 	t.Logf("before %s", print(b))
 	b.SetCapacity(10)
 	t.Logf("after  %s", print(b))
@@ -196,7 +233,7 @@ func TestIncrease(t *testing.T) {
 
 	b = New(6)
 	b.head = 0 //fake an offset
-	b.AddAll(1, 2, 3, 4)
+	b.Add(1, 2, 3, 4)
 	t.Logf("before %s", print(b))
 	b.SetCapacity(10)
 	t.Logf("after  %s", print(b))
@@ -206,7 +243,7 @@ func TestIncrease(t *testing.T) {
 
 	b = New(6)
 	b.head = 1 // values are all stick at the end
-	b.AddAll(1, 2, 3, 4)
+	b.Add(1, 2, 3, 4)
 	t.Logf("before %s", print(b))
 	b.SetCapacity(10)
 	t.Logf("after  %s", print(b))
@@ -216,7 +253,7 @@ func TestIncrease(t *testing.T) {
 
 	b = New(6)
 	b.head = 3 //values overlap the end
-	b.AddAll(1, 2, 3, 4)
+	b.Add(1, 2, 3, 4)
 	t.Logf("before %s", print(b))
 	b.SetCapacity(10)
 	t.Logf("after  %s", print(b))

@@ -9,14 +9,13 @@
 //
 //
 // Basic operations on a Ring are:
-//   Add: add a value to the head.
-//   Remove: remove value from the tail.
-//   Get : read values from the Ring
+//   Add: add value(s) to the head.
+//   Remove: remove value(s) from the tail.
+//   Get : read value from the Ring
+//   Push: Add and Remove at once. It does not consume any extra memory
 //
 // More advanced operations are:
-//   Push: Add and Remove at once. It does not consume any extra memory
-//   AddAll: Add several values in Bulk.
-// 		SetCapacity: increase this buffer capacity (preserving its size)
+// 	 SetCapacity: increase this buffer capacity (preserving its size)
 //
 //
 package ringbuffer
@@ -49,30 +48,21 @@ func New(capacity int) (b *Ring) {
 	}
 }
 
-//Add 'val' at the Ring's head, it also increases its size.
-//If the capacity is exhausted (size == capacity) an error is returned.
-func (b *Ring) Add(val interface{}) error {
-	if b.size >= len(b.buf) {
-		return ErrFull
+// Add values to the Ring's head, increasing its size.
+//
+// If you try to add more values than it can, an ErrFull error is returned and no value is actually added.
+func (b *Ring) Add(values ...interface{}) error {
+	if len(values) == 0 {
+		return nil
+	}
+	if len(values) == 1 {
+		return b.add(values[0])
+
 	}
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	next := Next(1, b.head, len(b.buf))
-	b.buf[next] = val
-	b.head = next
-	b.size++ // increase the inner size
-	return nil
-}
-
-// AddAll add all values to the Ring's head.
-// Behave like looping over Add() method, except that
-// it uses bulk operations.
-// If you try to add too much values, an error is returned and no value is actually added.
-func (b *Ring) AddAll(values ...interface{}) error {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
+	//check that we will be able to fill it.
 	if b.size+len(values) > len(b.buf) {
 		return ErrFull
 	}
@@ -120,8 +110,9 @@ func (b *Ring) AddAll(values ...interface{}) error {
 
 }
 
-//Remove 'count' items at the Ring's tail.
-// If count is greater than the Ring's size, the Ring is set to empty.
+// Remove 'count' items from the ring's tail.
+//
+// If count is greater than the actual ring's size, the ring size is reset to zero.
 func (b *Ring) Remove(count int) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -137,9 +128,81 @@ func (b *Ring) Remove(count int) {
 	return
 }
 
+//Push is equivalent to Remove then Add 'values' from the ring.
+//
+// It uses bulk operations (at most two).
+func (b *Ring) Push(values ...interface{}) {
+	if len(values) == 0 || b.size == 0 {
+		return
+	}
+	if len(values) == 1 {
+		b.push(values[0])
+		return
+	}
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	//alg: simple just write as much as you need after next
+	// if values is greater than length it is useless to write it down
+	// completely, we know that part first values will be overwritten.
+	// so we slice down values in that case
+
+	// firstpersistent is the first persistent index in values (the one that will not be overwritten)
+	vl := len(values)
+	firstpersistent := b.size * (vl / b.size)
+	if firstpersistent > 0 {
+		values = values[firstpersistent:] // cut the one before, there are useless.
+	}
+
+	for len(values) > 0 {
+		// is all about slicing right
+		//
+		// the extra space to add value too can be either
+		// from next position, to the end of the buffer
+		// or from the beginning to the tail of the ring
+
+		next := Next(1, b.head, len(b.buf))
+
+		// next is the absolute index of the buffer head+1
+		tgt := b.buf[next:]
+		// a slice of the buffer, that we'll used to write into
+
+		//we copy as much as possible.
+		n := copy(tgt, values) //n is the number of copied values
+		//move the head accordingly
+		b.head = Next(n, b.head, len(b.buf))
+		// we remove from the source, the value copied.
+		values = values[n:]
+		// values is the remaining values to be updated.
+		// this is possible if we have reached the end of the buffer
+	}
+
+}
+
+//Get returns the value in the ring.
+//
+//   Get(0) //retrieve the head
+//   Get(size-1) //is the oldest
+//   Get(-1) //is the oldest too
+//
+func (b *Ring) Get(i int) (interface{}, error) {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+	if b.size == 0 {
+		return 0, ErrEmpty
+	}
+	position := Index(i, b.head, b.size, len(b.buf))
+	return b.buf[position], nil
+
+	// this pos might be negative too, so I need to make it positive
+	// note that the oldest is auto pruned, when size== capacity, but with the size attribute we know it has been discarded
+}
+
 //SetCapacity tries to set the ring's capacity.
-// The Ring content is not altered as a consequence of this operation,
-// therefore the final capacity is at least equal to the Ring's size.
+//
+// The ring's content is not altered as a consequence of this operation,
+// therefore the final capacity is kept at least equal to the ring's size.
+//
+// SetCapacity(0) is then equivalent to remove any extra capacity.
 func (b *Ring) SetCapacity(capacity int) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -187,15 +250,17 @@ func (b *Ring) Capacity() int {
 	return len(b.buf)
 }
 
-//Size returns the Ring's size.
+//Size returns the ring's size.
 func (b *Ring) Size() int {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 	return b.size
 }
 
-//Push 'value' into the ring and discard the oldest one.
-func (b *Ring) Push(value interface{}) {
+//private methods
+
+//push  'value' into the ring and discard the oldest one.
+func (b *Ring) push(value interface{}) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	if len(b.buf) == 0 || b.size == 0 { // nothing to do
@@ -207,23 +272,23 @@ func (b *Ring) Push(value interface{}) {
 	// note that the oldest is auto pruned, when size== capacity, but with the size attribute we know it has been discarded
 }
 
-//Get returns the value in the ring.
-//
-// 'Get(0)' retreive the head
-// 'Get(size-1)' is the oldest
-// 'Get(-1)' is the oldest too.
-func (b *Ring) Get(i int) (interface{}, error) {
-	b.lock.RLock()
-	defer b.lock.RUnlock()
-	if b.size == 0 {
-		return 0, ErrEmpty
+//add 'val' at the Ring's head, it also increases its size.
+//If the capacity is exhausted (size == capacity) an error is returned.
+func (b *Ring) add(val interface{}) error {
+	if b.size >= len(b.buf) {
+		return ErrFull
 	}
-	position := Index(i, b.head, b.size, len(b.buf))
-	return b.buf[position], nil
+	b.lock.Lock()
+	defer b.lock.Unlock()
 
-	// this pos might be negative too, so I need to make it positive
-	// note that the oldest is auto pruned, when size== capacity, but with the size attribute we know it has been discarded
+	next := Next(1, b.head, len(b.buf))
+	b.buf[next] = val
+	b.head = next
+	b.size++ // increase the inner size
+	return nil
 }
+
+//util functions.
 
 // Next computes the next index for a ring buffer
 func Next(i, latest, capacity int) int {
