@@ -1,5 +1,4 @@
-- *ci*: [![Build Status](https://travis-ci.org/ericaro/ringbuffer.png?branch=master)](https://travis-ci.org/ericaro/ringbuffer) 
-- *doc:[![GoDoc](https://godoc.org/github.com/ericaro/ringbuffer?status.svg)](https://godoc.org/github.com/ericaro/ringbuffer)
+[![Build Status](https://travis-ci.org/ericaro/ringbuffer.png?branch=master)](https://travis-ci.org/ericaro/ringbuffer) [![GoDoc](https://godoc.org/github.com/ericaro/ringbuffer?status.svg)](https://godoc.org/github.com/ericaro/ringbuffer)
 
 # Ringbuffer 
 
