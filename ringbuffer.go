@@ -141,40 +141,33 @@ func (b *Ring) Push(values ...interface{}) {
 	}
 	b.lock.Lock()
 	defer b.lock.Unlock()
-	//alg: simple just write as much as you need after next
-	// if values is greater than length it is useless to write it down
-	// completely, we know that part first values will be overwritten.
+	//alg: just write as much as you need after next
+
+	// if len(values) is greater than b.size it is useless to fully write it down.
+	// We know that the first items will be overwritten.
 	// so we slice down values in that case
 
-	// firstpersistent is the first persistent index in values (the one that will not be overwritten)
-	vl := len(values)
-	firstpersistent := b.size * (vl / b.size)
-	if firstpersistent > 0 {
-		values = values[firstpersistent:] // cut the one before, there are useless.
+	if len(values) > b.size {
+		//only write down the last b.size ones
+		values = values[len(values)-b.size:] // cut the one before, there are useless.
 	}
+	// now we need to write down values (that is never greater than b.size)
 
-	for len(values) > 0 {
-		// is all about slicing right
-		//
-		// the extra space to add value too can be either
-		// from next position, to the end of the buffer
-		// or from the beginning to the tail of the ring
+	// next is the absolute index of the buffer head+1
+	next := Next(1, b.head, len(b.buf))
 
-		next := Next(1, b.head, len(b.buf))
+	// we are going to write down from 'next' toward the end of the buffer.
+	tgt := b.buf[next:]
 
-		// next is the absolute index of the buffer head+1
-		tgt := b.buf[next:]
-		// a slice of the buffer, that we'll used to write into
+	//we copy as much as possible.
+	n := copy(tgt, values) //n is the number of copied values
 
-		//we copy as much as possible.
-		n := copy(tgt, values) //n is the number of copied values
-		//move the head accordingly
-		b.head = Next(n, b.head, len(b.buf))
-		// we remove from the source, the value copied.
-		values = values[n:]
-		// values is the remaining values to be updated.
-		// this is possible if we have reached the end of the buffer
+	// if we have exhausted the buffer (we have reached the end of the buffer) we need to start again from zero this time.
+	if n < len(values) { // there are still values to copy
+		copy(b.buf, values[n:]) //copy remaining from the begining this time.
 	}
+	//move the head
+	b.head = Next(len(values), b.head, len(b.buf))
 
 }
 
@@ -192,9 +185,6 @@ func (b *Ring) Get(i int) (interface{}, error) {
 	}
 	position := Index(i, b.head, b.size, len(b.buf))
 	return b.buf[position], nil
-
-	// this pos might be negative too, so I need to make it positive
-	// note that the oldest is auto pruned, when size== capacity, but with the size attribute we know it has been discarded
 }
 
 //SetCapacity tries to set the ring's capacity.

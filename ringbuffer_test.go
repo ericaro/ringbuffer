@@ -215,6 +215,28 @@ func TestPushAll(t *testing.T) {
 		t.Errorf("PushAll should be equivalent to Push() many times:\nreal%s\ngold%s\n", print(b), print(x))
 	}
 
+	x = New(5)
+	x.Add(1, 2, 3)
+	// 120 pushes means that we get rid of the first ones
+	vals := make([]interface{}, 120)
+	for i := 0; i < len(vals); i++ {
+		x.Push(i + 4)
+		vals[i] = i + 4
+	}
+
+	//real
+	b = New(5)
+	b.Add(1, 2, 3)
+
+	b.Push(vals...)
+
+	t.Logf("b=%s\n", print(b))
+	t.Logf("x=%s\n", print(x))
+	//pushall should be just the equivalent to push, twice
+	if !equals(b, x) {
+		t.Errorf("PushAll should be equivalent to Push() many times:\nreal%s\ngold%s\n", print(b), print(x))
+	}
+
 }
 func TestIncrease(t *testing.T) {
 
